@@ -28,8 +28,10 @@ const reader = new Reader({
 // Schema registry with authentication (basic auth)
 const schemaRegistry = new SchemaRegistry({
   url: "http://localhost:8081",
-  username: __ENV.SCHEMA_REGISTRY_USERNAME, // 🔐 Replace with your actual username
-  password: __ENV.SCHEMA_REGISTRY_PASSWORD, // 🔐 Replace with your actual password
+  basicAuth: {
+    username: __ENV.SCHEMA_REGISTRY_USERNAME, // 🔐 Replace with your actual username
+    password: __ENV.SCHEMA_REGISTRY_PASSWORD, // 🔐 Replace with your actual password
+  }
 });
 
 // Define schemas
