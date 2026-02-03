@@ -40,6 +40,7 @@ var (
 type WriterConfig struct {
 	AutoCreateTopic bool            `mapstructure:"autoCreateTopic"`
 	ConnectLogger   bool            `mapstructure:"connectLogger"`
+	DisableMetrics  bool            `mapstructure:"disableMetrics"` // Skip metrics reporting to reduce memory usage
 	MaxAttempts     int             `mapstructure:"maxAttempts"`
 	BatchSize       int             `mapstructure:"batchSize"`
 	BatchBytes      int             `mapstructure:"batchBytes"`
@@ -157,7 +158,7 @@ func (k *Kafka) writerClass(call sobek.ConstructorCall) *sobek.Object {
 			}
 		}
 
-		k.produce(writer, producerConfig)
+		k.produce(writer, producerConfig, &writerConfig)
 		return sobek.Undefined()
 	})
 	if err != nil {
@@ -229,7 +230,7 @@ func (k *Kafka) writer(writerConfig *WriterConfig) *kafkago.Writer {
 
 // produce sends messages to Kafka with the given configuration.
 // nolint: funlen
-func (k *Kafka) produce(writer *kafkago.Writer, produceConfig *ProduceConfig) {
+func (k *Kafka) produce(writer *kafkago.Writer, produceConfig *ProduceConfig, writerConfig *WriterConfig) {
 	if state := k.vu.State(); state == nil {
 		logger.WithField("error", ErrForbiddenInInitContext).Error(ErrForbiddenInInitContext)
 		common.Throw(k.vu.Runtime(), ErrForbiddenInInitContext)
@@ -285,7 +286,10 @@ func (k *Kafka) produce(writer *kafkago.Writer, produceConfig *ProduceConfig) {
 
 	originalErr := writer.WriteMessages(k.vu.Context(), kafkaMessages...)
 
-	k.reportWriterStats(writer.Stats())
+	// Skip metrics reporting if disabled to reduce memory usage in long-running tests
+	if !writerConfig.DisableMetrics {
+		k.reportWriterStats(writer.Stats())
+	}
 
 	if originalErr != nil {
 		errorMsg := "Error writing messages."
